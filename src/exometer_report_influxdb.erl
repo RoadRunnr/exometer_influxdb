@@ -20,6 +20,7 @@
          make_packet/5]).
 -endif.
 
+-include_lib("exometer_core/include/exometer.hrl").
 
 -define(DEFAULT_HOST, <<"127.0.0.1">>).
 -define(DEFAULT_DB, <<"exometer">>).
@@ -179,7 +180,19 @@ exometer_info(_Unknown, State) ->
     {ok, State}.
 
 -spec exometer_newentry(exometer:entry(), state()) -> callback_result().
-exometer_newentry(_Entry, State) ->
+
+exometer_newentry(#exometer_entry{name = [capwap, ac, _WTP, _Value] = Metric, type = gauge} = _Entry,
+		  State) ->
+    lager:debug("EXO NewEntry GAUGE: ~p", [lager:pr(_Entry, ?MODULE)]),
+    Tags = [{type, {from_name, 1}},
+	    {category, {from_name, 2}},
+	    {wtp, {from_name, 3}}],
+    Extra = [{tags, Tags}],
+    exometer_report:subscribe(?MODULE, Metric, value, 30000, Extra, false),
+    {ok, State};
+
+exometer_newentry(#exometer_entry{} = _Entry, State) ->
+    lager:debug("EXO NewEntry: ~p", [lager:pr(_Entry, ?MODULE)]),
     {ok, State}.
 
 -spec exometer_setopts(exometer:entry(), options(),
